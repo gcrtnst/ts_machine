@@ -40,6 +40,3 @@ Tracker = "https://github.com/gcrtnst/ts_machine/issues"
 
 [project.scripts]
 tsm = "tsm:main"
-
-[tool.setuptools]
-packages = {find = {}}

@@ -12,7 +12,7 @@ authors = [
 ]
 license = "MIT"
 requires-python = "~=3.14"
-keywords = ["niconico", "time-shift"]
+keywords = ["niconico"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

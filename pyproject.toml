@@ -40,3 +40,15 @@ Tracker = "https://github.com/gcrtnst/ts_machine/issues"
 
 [project.scripts]
 tsm = "tsm:main"
+
+[dependency-groups]
+dev = ["ruff", "pyright"]
+
+[tool.ruff.lint]
+select = ["F", "ANN", "RUF1", "RUF2"]
+
+[tool.pyright]
+include=["src/**/*.py", "tests/**/*.py"]
+extraPaths=["src/"]
+pythonPlatform="All"
+typeCheckingMode="standard"

@@ -11,7 +11,7 @@ authors = [
     {name = "gcrtnst"}
 ]
 license = "MIT"
-requires-python = "~=3.7"
+requires-python = "~=3.14"
 keywords = ["niconico", "time-shift"]
 classifiers = [
     "Development Status :: 3 - Alpha",

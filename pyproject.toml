@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,14 +10,13 @@ readme = "README.md"
 authors = [
     {name = "gcrtnst"}
 ]
-license = {text = "MIT"}
+license = "MIT"
 requires-python = "~=3.7"
 keywords = ["niconico", "time-shift"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: Japanese",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3 :: Only",

@@ -1,9 +1,9 @@
 class NiconicoException(Exception):
     def __init__(self, *args, **kwargs):
         if len(args) == 1:
-            args = ('niconico: {}'.format(args[0]),)
+            args = ("niconico: {}".format(args[0]),)
         elif len(args) > 1:
-            args = ('niconico: {}'.format(args),)
+            args = ("niconico: {}".format(args),)
         super().__init__(*args, **kwargs)
 
 
@@ -53,5 +53,5 @@ class TSMaxReservation(NiconicoException):
 
 class ContentSearchError(NiconicoException):
     def __init__(self, *args, **kwargs):
-        self.meta = kwargs.pop('meta', None)
+        self.meta = kwargs.pop("meta", None)
         super().__init__(*args, **kwargs)

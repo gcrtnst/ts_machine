@@ -2,9 +2,8 @@ import functools
 import itertools
 import re
 import sys
+import zoneinfo
 from datetime import timedelta
-
-import dateutil.tz
 
 from .niconico import (
     CommunicationError,
@@ -69,7 +68,7 @@ def _tsm_run(func):
 class TSMachine:
     def __init__(self):
         self._niconico = Niconico()
-        self._niconico.tz = dateutil.tz.gettz()
+        self._niconico.tz = zoneinfo.ZoneInfo("Asia/Tokyo")
 
         self.filter_list = {}
         self.overwrite = False

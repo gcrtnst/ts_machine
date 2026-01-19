@@ -5,7 +5,6 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-import dateutil.parser
 import requests
 from bs4 import BeautifulSoup
 from requests import Session
@@ -306,11 +305,9 @@ class Niconico:
 
             for content in resp_json["data"]:
                 if "startTime" in content:
-                    content["startTime"] = dateutil.parser.isoparse(
-                        content["startTime"]
-                    )
+                    content["startTime"] = datetime.fromisoformat(content["startTime"])
                 if "openTime" in content:
-                    content["openTime"] = dateutil.parser.isoparse(content["openTime"])
+                    content["openTime"] = datetime.fromisoformat(content["openTime"])
                 yield content
 
             data["_offset"] += len(resp_json["data"])

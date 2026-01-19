@@ -105,10 +105,9 @@ def lwp_cookiejar(filename=None, filemode=0o666):
     try:
         yield jar
     finally:
-        if filename is None:
-            return
-        filename.touch(mode=filemode)
-        jar.save(str(filename))
+        if filename is not None:
+            filename.touch(mode=filemode)
+            jar.save(str(filename))
 
 
 def main():

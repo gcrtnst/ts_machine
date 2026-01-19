@@ -6,9 +6,9 @@ from http.cookiejar import LWPCookieJar
 from json import JSONDecodeError
 from pathlib import Path
 
-import toml
+import tomllib
 from cerberus import Validator
-from toml import TomlDecodeError
+from tomllib import TOMLDecodeError
 
 from .tsm import TSMachine
 
@@ -75,9 +75,9 @@ class ConfigError(Exception):
 def load_config(path):
     path = Path(path)
     try:
-        with path.open() as f:
-            config = toml.load(f)
-    except TomlDecodeError as e:
+        with path.open(mode="rb") as f:
+            config = tomllib.load(f)
+    except TOMLDecodeError as e:
         raise ConfigError("config: toml: {}".format(e))
 
     v = Validator(config_schema)

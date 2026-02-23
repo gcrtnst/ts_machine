@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 import itertools
 import re
@@ -70,7 +71,7 @@ class TSMachine:
         self._niconico = Niconico()
         self._niconico.tz = zoneinfo.ZoneInfo("Asia/Tokyo")
 
-        self.filter_list = {}
+        self.filter_list = []
         self.overwrite = False
         self.warnings = {
             "ts_not_supported",
@@ -151,25 +152,25 @@ class TSMachine:
 
     def contents_search_json_filter(self, vfilter, now=None):
         json_filters = []
-        if "jsonFilter" in vfilter:
-            json_filters.append(vfilter["jsonFilter"])
+        if vfilter.jsonFilter is not None:
+            json_filters.append(vfilter.jsonFilter)
         for field, timefrom, timeto in [
-            ("openTime", "openTimeFrom", "openTimeTo"),
-            ("startTime", "startTimeFrom", "startTimeTo"),
-            ("liveEndTime", "liveEndTimeFrom", "liveEndTimeTo"),
+            ("openTime", vfilter.openTimeFrom, vfilter.openTimeTo),
+            ("startTime", vfilter.startTimeFrom, vfilter.startTimeTo),
+            ("liveEndTime", vfilter.liveEndTimeFrom, vfilter.liveEndTimeTo),
         ]:
-            if timefrom not in vfilter and timeto not in vfilter:
+            if timefrom is None and timeto is None:
                 continue
             if now is None:
                 now = self._niconico.server_time()
 
             jf = {"type": "range", "field": field}
-            if timefrom in vfilter:
-                dt = now + parse_timedelta(vfilter[timefrom])
+            if timefrom is not None:
+                dt = now + parse_timedelta(timefrom)
                 jf["from"] = dt.isoformat(timespec="seconds")
                 jf["include_lower"] = True
-            if timeto in vfilter:
-                dt = now + parse_timedelta(vfilter[timeto])
+            if timeto is not None:
+                dt = now + parse_timedelta(timeto)
                 jf["to"] = dt.isoformat(timespec="seconds")
                 jf["include_upper"] = True
             json_filters.append(jf)
@@ -181,21 +182,21 @@ class TSMachine:
         return {"type": "and", "filters": json_filters}
 
     def match_ppv(self, vfilter, live_id, channel_id):
-        if "ppv" not in vfilter:
+        if vfilter.ppv is None:
             return True
-        return vfilter["ppv"] == (
+        return vfilter.ppv == (
             channel_id is not None and self._niconico.is_ppv_live(live_id, channel_id)
         )
 
     def iter_search(self, vfilter, fields=set()):
         search_fields = {"contentId", "channelId"} | set(fields)
         iter_contents = self._niconico.contents_search(
-            vfilter["q"],
+            vfilter.q,
             service="live",
-            targets=vfilter["targets"],
+            targets=vfilter.targets,
             fields=search_fields,
             json_filter=self.contents_search_json_filter(vfilter),
-            sort=vfilter["sort"],
+            sort=vfilter.sort,
         )
 
         for content in iter_contents:
@@ -260,3 +261,20 @@ class TSMachine:
         ts_list_after = self._niconico.ts_list()
         self.print_diff(ts_list_before, ts_list_after)
         return 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class Filter:
+    q: str
+    targets: list[str] = dataclasses.field(
+        default_factory=lambda: ["title", "description", "tags"]
+    )
+    sort: str = "+startTime"
+    jsonFilter: object | None = None
+    openTimeFrom: str | None = None
+    openTimeTo: str | None = None
+    startTimeFrom: str | None = None
+    startTimeTo: str | None = None
+    liveEndTimeFrom: str | None = None
+    liveEndTimeTo: str | None = None
+    ppv: bool | None = None

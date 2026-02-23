@@ -1,7 +1,6 @@
 import contextlib
 import json
 import sys
-import tomllib
 from argparse import ArgumentParser
 from http.cookiejar import LWPCookieJar
 from json import JSONDecodeError

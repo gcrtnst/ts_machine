@@ -1,35 +1,22 @@
+import datetime
 import functools
 import json
 import re
 import urllib.parse
-import xml.etree.ElementTree as ET
-from datetime import datetime
+import xml.etree.ElementTree
 
+import bs4
 import requests
-from bs4 import BeautifulSoup
-from requests import Session
 
-from . import utils
-from .exceptions import (
-    CommunicationError,
-    ContentSearchError,
-    InvalidResponse,
-    LoginFailed,
-    LoginRequired,
-    NotFound,
-    Timeout,
-    TSAlreadyRegistered,
-    TSMaxReservation,
-    TSNotSupported,
-    TSRegistrationExpired,
-)
+import tsm.niconico.exceptions
+import tsm.niconico.utils
 
 
 def _http_raise_for_status(resp):
     try:
         resp.raise_for_status()
     except requests.HTTPError as e:
-        raise CommunicationError(e)
+        raise tsm.niconico.exceptions.CommunicationError(e)
 
 
 def _login_if_required(func):
@@ -37,14 +24,14 @@ def _login_if_required(func):
     def wrapper(self, *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
-        except LoginRequired:
+        except tsm.niconico.exceptions.LoginRequired:
             if self.mail is None or self.password is None:
                 raise
             self.login()
         try:
             return func(self, *args, **kwargs)
-        except LoginRequired:
-            raise LoginFailed("login failed for unknown reason")
+        except tsm.niconico.exceptions.LoginRequired:
+            raise tsm.niconico.exceptions.LoginFailed("login failed for unknown reason")
 
     return wrapper
 
@@ -65,7 +52,7 @@ class Niconico:
         self.context = None
         self.timeout = None
         self.tz = None
-        self._session = Session()
+        self._session = requests.Session()
 
     @property
     def user_agent(self):
@@ -103,13 +90,13 @@ class Niconico:
         try:
             return self._session.request(method, url, *args, **kwargs)
         except requests.Timeout:
-            raise Timeout("connection to " + url + " timed out")
+            raise tsm.niconico.exceptions.Timeout("connection to " + url + " timed out")
         except (
             requests.ConnectionError,
             requests.HTTPError,
             requests.TooManyRedirects,
         ) as e:
-            raise CommunicationError(e)
+            raise tsm.niconico.exceptions.CommunicationError(e)
 
     def _http_get(self, *args, **kwargs):
         return self._http_request("get", *args, **kwargs)
@@ -125,7 +112,7 @@ class Niconico:
 
     def login(self):
         if self.mail is None or self.password is None:
-            raise LoginFailed("mail or password not provided")
+            raise tsm.niconico.exceptions.LoginFailed("mail or password not provided")
 
         resp = self._http_post(
             "https://account.nicovideo.jp/api/v1/login",
@@ -139,7 +126,7 @@ class Niconico:
         for cookie in resp.cookies:
             if cookie.name == "user_session" or cookie.name == "user_session_secure":
                 return
-        raise LoginFailed("mail or password is incorrect")
+        raise tsm.niconico.exceptions.LoginFailed("mail or password is incorrect")
 
     def _ts_watch_num(self, vid):
         resp = self._http_post(
@@ -150,7 +137,7 @@ class Niconico:
             },
         )
         _http_raise_for_status(resp)
-        soup = BeautifulSoup(resp.text, "html5lib")
+        soup = bs4.BeautifulSoup(resp.text, "html5lib")
 
         tag = soup.select_one("#reserve > button")
         if tag is not None and "onclick" in tag.attrs:
@@ -163,29 +150,39 @@ class Niconico:
         )
         if tag is not None:
             if tag.text == "タイムシフト予約のご利用は、ログインが必要です。":
-                raise LoginRequired("login is required for timeshift registration")
+                raise tsm.niconico.exceptions.LoginRequired(
+                    "login is required for timeshift registration"
+                )
             if tag.text == "対象番組はありません。":
-                raise NotFound("lv" + vid + " not found")
+                raise tsm.niconico.exceptions.NotFound("lv" + vid + " not found")
             if tag.text == "大変申し訳ございません。システムエラーが発生しました。 ":
-                raise NotFound("lv" + vid + " not found")
+                raise tsm.niconico.exceptions.NotFound("lv" + vid + " not found")
             if tag.text == "この番組はタイムシフトに対応していません。":
-                raise TSNotSupported("timeshift is not supported for lv" + vid)
+                raise tsm.niconico.exceptions.TSNotSupported(
+                    "timeshift is not supported for lv" + vid
+                )
             if tag.text == "既に予約済みです。":
-                raise TSAlreadyRegistered("timeshift already registered for lv" + vid)
+                raise tsm.niconico.exceptions.TSAlreadyRegistered(
+                    "timeshift already registered for lv" + vid
+                )
             if tag.text == "申し込み期限切れです。":
-                raise TSRegistrationExpired(
+                raise tsm.niconico.exceptions.TSRegistrationExpired(
                     "timeshift registration expired for lv" + vid
                 )
 
         tag = soup.select_one('body > div[class="ab inform"] > div.atxt > div.info > p')
         if tag is not None:
             if tag.text == "タイムシフトの予約上限に達しました。":
-                raise TSMaxReservation("max timeshift reservation exceeded")
+                raise tsm.niconico.exceptions.TSMaxReservation(
+                    "max timeshift reservation exceeded"
+                )
 
         tag = soup.select_one("#reserve > a > span")
         if tag is not None and tag.text == "視聴する":
-            raise TSAlreadyRegistered("timeshift already registered for lv" + vid)
-        raise InvalidResponse(
+            raise tsm.niconico.exceptions.TSAlreadyRegistered(
+                "timeshift already registered for lv" + vid
+            )
+        raise tsm.niconico.exceptions.InvalidResponse(
             "failed to register timeshift for lv" + vid + " with invalid response"
         )
 
@@ -200,7 +197,7 @@ class Niconico:
         )
         _http_raise_for_status(resp)
 
-        soup = BeautifulSoup(resp.text, "html5lib")
+        soup = bs4.BeautifulSoup(resp.text, "html5lib")
         if soup.select_one("#regist_finished") is not None:
             return
 
@@ -209,16 +206,20 @@ class Niconico:
         )
         if tag is not None:
             if tag.text == "タイムシフト予約のご利用は、ログインが必要です。":
-                raise LoginRequired("login is required for timeshift registration")
+                raise tsm.niconico.exceptions.LoginRequired(
+                    "login is required for timeshift registration"
+                )
         if soup.select_one("#overwrite") is not None:
-            raise TSMaxReservation("max timeshift reservation exceeded")
-        raise InvalidResponse(
+            raise tsm.niconico.exceptions.TSMaxReservation(
+                "max timeshift reservation exceeded"
+            )
+        raise tsm.niconico.exceptions.InvalidResponse(
             "failed to register timeshift for lv" + vid + " with invalid response"
         )
 
     @_login_if_required
     def ts_register(self, live_id, overwrite=False):
-        vid = str(utils.int_id("lv", live_id))
+        vid = str(tsm.niconico.utils.int_id("lv", live_id))
         token = self._ts_watch_num(vid)
         self._ts_regist(vid, token, overwrite)
 
@@ -230,13 +231,17 @@ class Niconico:
                 "mode": "detaillist",
             },
         )
-        root = ET.fromstring(resp.text)
+        root = xml.etree.ElementTree.fromstring(resp.text)
         if "status" not in root.attrib:
-            raise InvalidResponse("failed to get timeshift list with invalid response")
+            raise tsm.niconico.exceptions.InvalidResponse(
+                "failed to get timeshift list with invalid response"
+            )
         if root.attrib["status"] == "fail":
-            raise LoginRequired("login is required to get timeshift list")
+            raise tsm.niconico.exceptions.LoginRequired(
+                "login is required to get timeshift list"
+            )
         if root.attrib["status"] != "ok":
-            raise InvalidResponse(
+            raise tsm.niconico.exceptions.InvalidResponse(
                 "failed to get timeshift list with unknown status "
                 + root.attrib["status"]
             )
@@ -253,7 +258,7 @@ class Niconico:
             }
             if expire != 0:
                 try:
-                    item["expire"] = datetime.fromtimestamp(expire, tz=self.tz)
+                    item["expire"] = datetime.datetime.fromtimestamp(expire, tz=self.tz)
                 except OverflowError:
                     pass
             items.append(item)
@@ -292,9 +297,11 @@ class Niconico:
             )
             resp_json = json.loads(resp.text)
             if "meta" not in resp_json:
-                raise InvalidResponse("contents search failed with invalid response")
+                raise tsm.niconico.exceptions.InvalidResponse(
+                    "contents search failed with invalid response"
+                )
             if resp_json["meta"]["status"] != 200:
-                raise ContentSearchError(
+                raise tsm.niconico.exceptions.ContentSearchError(
                     resp_json["meta"]["errorCode"]
                     + ": "
                     + resp_json["meta"]["errorMessage"],
@@ -305,9 +312,13 @@ class Niconico:
 
             for content in resp_json["data"]:
                 if "startTime" in content:
-                    content["startTime"] = datetime.fromisoformat(content["startTime"])
+                    content["startTime"] = datetime.datetime.fromisoformat(
+                        content["startTime"]
+                    )
                 if "openTime" in content:
-                    content["openTime"] = datetime.fromisoformat(content["openTime"])
+                    content["openTime"] = datetime.datetime.fromisoformat(
+                        content["openTime"]
+                    )
                 yield content
 
             data["_offset"] += len(resp_json["data"])
@@ -315,8 +326,8 @@ class Niconico:
                 total = resp_json["meta"]["totalCount"]
 
     def is_ppv_live(self, live_id, channel_id):
-        live_id = utils.str_id("lv", live_id)
-        channel_id = utils.str_id("ch", channel_id)
+        live_id = tsm.niconico.utils.str_id("lv", live_id)
+        channel_id = tsm.niconico.utils.str_id("ch", channel_id)
         resp = self._http_get(
             "https://ch.nicovideo.jp/ppv_live/" + channel_id + "/" + live_id
         )
@@ -328,6 +339,8 @@ class Niconico:
 
         match = self._re_server_time.search(resp.text)
         if not match:
-            raise InvalidResponse("failed to get server time with invalid response")
+            raise tsm.niconico.exceptions.InvalidResponse(
+                "failed to get server time with invalid response"
+            )
         timestr = match.group("time")
-        return datetime.fromtimestamp(int(timestr), tz=self.tz)
+        return datetime.datetime.fromtimestamp(int(timestr), tz=self.tz)

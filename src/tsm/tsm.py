@@ -1,22 +1,12 @@
 import dataclasses
+import datetime
 import functools
 import itertools
 import re
 import sys
 import zoneinfo
-from datetime import timedelta
 
-from .niconico import (
-    CommunicationError,
-    ContentSearchError,
-    LoginFailed,
-    Niconico,
-    Timeout,
-    TSAlreadyRegistered,
-    TSMaxReservation,
-    TSNotSupported,
-    TSRegistrationExpired,
-)
+import tsm.niconico
 
 _re_timedelta = re.compile(
     r"^(?P<minus>-?)((?P<weeks>[0-9]+)w)?"
@@ -46,8 +36,8 @@ def parse_timedelta(s):
         if value is not None:
             kwargs[key] = int(value)
     if match.group("minus"):
-        return -timedelta(**kwargs)
-    return timedelta(**kwargs)
+        return -datetime.timedelta(**kwargs)
+    return datetime.timedelta(**kwargs)
 
 
 def _tsm_run(func):
@@ -55,11 +45,15 @@ def _tsm_run(func):
     def wrapper(self, *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
-        except ContentSearchError as e:
+        except tsm.niconico.ContentSearchError as e:
             if e.meta["status"] == 400:
                 raise
             self.print_err("error: {}".format(e))
-        except (CommunicationError, LoginFailed, Timeout) as e:
+        except (
+            tsm.niconico.CommunicationError,
+            tsm.niconico.LoginFailed,
+            tsm.niconico.Timeout,
+        ) as e:
             self.print_err("error: {}".format(e))
         return 1
 
@@ -68,7 +62,7 @@ def _tsm_run(func):
 
 class TSMachine:
     def __init__(self):
-        self._niconico = Niconico()
+        self._niconico = tsm.niconico.Niconico()
         self._niconico.tz = zoneinfo.ZoneInfo("Asia/Tokyo")
 
         self.filter_list = []
@@ -243,17 +237,17 @@ class TSMachine:
                 continue
             try:
                 self.ts_register(content["contentId"])
-            except TSNotSupported as e:
+            except tsm.niconico.TSNotSupported as e:
                 if "ts_not_supported" in self.warnings:
                     self.print_err("warning: {}".format(e))
                 continue
-            except TSAlreadyRegistered:
+            except tsm.niconico.TSAlreadyRegistered:
                 continue
-            except TSRegistrationExpired as e:
+            except tsm.niconico.TSRegistrationExpired as e:
                 if "ts_registration_expired" in self.warnings:
                     self.print_err("warning: {}".format(e))
                 continue
-            except TSMaxReservation as e:
+            except tsm.niconico.TSMaxReservation as e:
                 if "ts_max_reservation" in self.warnings:
                     self.print_err("warning: {}".format(e))
                 break

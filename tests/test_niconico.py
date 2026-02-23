@@ -2,8 +2,8 @@ import unittest
 import unittest.mock
 
 import tsm.niconico.client
-import tsm.niconico.utils
 import tsm.niconico.exceptions
+import tsm.niconico.utils
 
 
 class TestNiconico(unittest.TestCase):

@@ -1,3 +1,3 @@
-from .main import main
+import tsm.main
 
-main()
+tsm.main.main()

@@ -37,7 +37,7 @@ Source = "https://github.com/gcrtnst/ts_machine"
 Tracker = "https://github.com/gcrtnst/ts_machine/issues"
 
 [project.scripts]
-tsm = "tsm:main"
+tsm = "tsm.main:main"
 
 [dependency-groups]
 dev = ["ruff", "pyright"]

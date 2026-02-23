@@ -1,6 +1,6 @@
 import re
 
-from .exceptions import InvalidContentID
+import tsm.niconico.exceptions
 
 
 def parse_id(content_id):
@@ -11,13 +11,15 @@ def parse_id(content_id):
         if match:
             groupdict = match.groupdict()
             return (groupdict["prefix"], int(groupdict["id"]))
-    raise InvalidContentID("invalid context id: {}".format(content_id))
+    raise tsm.niconico.exceptions.InvalidContentID(
+        "invalid context id: {}".format(content_id)
+    )
 
 
 def int_id(prefix, content_id):
     p, i = parse_id(content_id)
     if p is not None and p != prefix:
-        raise InvalidContentID(
+        raise tsm.niconico.exceptions.InvalidContentID(
             'expected "' + prefix + '" for content id prefix, found "' + p + '"'
         )
     return i
